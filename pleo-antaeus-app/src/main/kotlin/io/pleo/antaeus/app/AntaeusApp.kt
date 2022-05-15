@@ -14,7 +14,13 @@ import io.pleo.antaeus.core.services.InvoiceService
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
 import io.pleo.antaeus.data.InvoiceTable
+import io.pleo.antaeus.factories.ServiceFactory
+import io.pleo.antaeus.messaging.MessageConsumer
+import io.pleo.antaeus.messaging.MessagePublisher
+import io.pleo.antaeus.messaging.consumers.CustomerToInvoiceConsumer
 import io.pleo.antaeus.rest.AntaeusRest
+import io.pleo.antaeus.scheduling.CronScheduler
+import io.pleo.antaeus.scheduling.MonthlyInvoiceJob
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.StdOutSqlLogger
@@ -25,7 +31,12 @@ import setupInitialData
 import java.io.File
 import java.sql.Connection
 
+
 fun main() {
+
+    var consumer = CustomerToInvoiceConsumer(MessageConsumer())
+    consumer.start()
+
     // The tables to create in the database.
     val tables = arrayOf(InvoiceTable, CustomerTable)
 
@@ -68,4 +79,17 @@ fun main() {
         invoiceService = invoiceService,
         customerService = customerService
     ).run()
+
+    ServiceFactory.setDal(dal)
+    var schedule = CronScheduler(
+        "MonthlyInvoiceJob",
+        "invoiceJobs",
+        "0/20 * * * * ?",
+         MonthlyInvoiceJob()
+    )
+
+    schedule.start()
+
 }
+
+

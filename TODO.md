@@ -1,0 +1,9 @@
+- Create customer consumer
+- Create invoice producer
+- Create invoice consumer
+- Add unit testing
+- Create documentation
+- Include system design in marmaid
+- Include error handling on queues, queues on error callback
+- Run scheduler and consumer each one in a separate container
+- Include config settings
