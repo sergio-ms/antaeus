@@ -10,7 +10,7 @@ object ServiceFactory {
     fun setDal(dal : AntaeusDal) {
         this.dal = dal
     }
-    fun GetCustomerService(): CustomerService {
+    fun getCustomerProvider(): CustomerService {
         return CustomerService(dal!!)
     }
 }
