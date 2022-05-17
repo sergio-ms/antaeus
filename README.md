@@ -85,4 +85,83 @@ The code given is structured as follows. Feel free however to modify the structu
 * [Mockk](https://mockk.io/) - Mocking library
 * [Sqlite3](https://sqlite.org/index.html) - Database storage engine
 
+
 Happy hacking 😁!
+
+
+## Solution
+
+### Introduction
+Initially it seems to be a simple problem that could be solved with a monolithic approach without many complications.
+The monolithic application could be some sort of scheduled application or task that fetch invoices data from
+a database and invokes an external component to make a payment. 
+
+However, if we think big and consider that the number of customer can grow very quickly,
+then we start realising that monolithic solution could present some limitations. These limitations could be:
+- **Scalability:** A monolithic solution could only scale up vertically. This means that at some point it cannot longer 
+scale up more or if so it would be extremely expensive.
+- **Downtimes:** Everytime that the team needs to deploy a new version it would be required to stop the application
+path or deploy the new version and start it again. Perhaps it is not a big deal for the payment system but would be
+for the rest API part.
+
+- **Team scalability**: It would be difficult to scale up the dev team as many people working in the same code
+base could result in many merge conflicts, many people editing the same components etc. By splitting the solution
+in multiple microservices it would be easier to split the big team into smaller teams, each one specialized in
+different microservices.
+
+
+Apart from the above there are many more good reason for choosing a microservice approach where the responsibilities 
+are split.
+
+### Microservice solution
+
+The proposed solution consist of the following components that can be run as separated microservices:
+- **Rest api:** In charge of exposing invoices information
+
+- **Scheduler:** Is in charge of triggering certain task on a timely basis. The task that this component run should
+very lightweight allowing to finish before a new schedule is reached. It is expected not to have many replicas of it.
+
+- **Processors:** Are the components that will do the heavy work. These components will receive chunks of work and will
+be in charge of completing them. The intention is to device the task in the smaller chunks as we can and have many replicas
+consuming and processing those chunks of work.
+
+
+### Communication
+One of the advantages of having a monolithic solution is the simplicity when we can to communicate different components.
+This however gets more complicated when moving into a microservice architecture.
+
+In our case we have two types of component that we want to communicate. The scheduler(s) and the processors. 
+Those components will be running in the background and having an asynchronous communication channel is very 
+appropriated. They can wait to each other as far as the communication is guarantee. For this reason it is 
+proposed a communication using queues. I'm using RabbitMq queues since they are open source and widely used.
+On top of that they have great support, a big community and tons of library for pretty much any programming language.
+All those makes them a good choice. However, in principle it could be possible to use any other queue technology.
+
+
+### Workflow
+
+The execution workflow consists as follows:
+1. A schedule task runs every month or every amount of time. This calculates the number of customer that should
+be checked for pending invoices and send a notification message to the `CustomerToInvoiceProcessor`
+2. The `CustomerToInvoiceProcessor` receive messages with a customer information,
+get the pending invoices for a particular customer at
+ the time and sends them to the `PendingInvoiceProcessor`.
+3. The `PendingInvoiceProcessor` receives messages that contain invoices information and invokes the external
+component to do the payment. It is important to take into consideration that 
+the execution of the payment process might be slow as it requires contacting with the bank etc. which 
+involves complex and potentially slow payment protocols. That is the reason why it is expected to have a
+high number of `PendingInvoiceProcessor` replicas that can be easily scaled up and down depending on the
+amount of work.
+
+
+```mermaid
+
+flowchart LR
+    CustomersToInvoiceQueue{{CustomersToInvoiceQueue}}
+    PendingInvoicesQueue{{PendingInvoicesQueue}}
+
+    Scheduler --> CustomersToInvoiceQueue
+    CustomersToInvoiceQueue --> CustomerToInvoiceProcessor
+    CustomerToInvoiceProcessor --> PendingInvoicesQueue
+    PendingInvoicesQueue --> PendingInvoiceProcessor
+```
