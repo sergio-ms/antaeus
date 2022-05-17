@@ -17,4 +17,8 @@ class CustomerService(private val dal: AntaeusDal) : CustomerProvider {
     override fun fetch(id: Int): Customer {
         return dal.fetchCustomer(id) ?: throw CustomerNotFoundException(id)
     }
+
+    override fun fetchCustomersWithPendingInvoices(): List<Customer> {
+        return dal.fetchCustomersWithPendingInvoices()
+    }
 }

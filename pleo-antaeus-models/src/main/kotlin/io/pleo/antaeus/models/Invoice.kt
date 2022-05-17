@@ -6,3 +6,13 @@ data class Invoice(
     val amount: Money,
     val status: InvoiceStatus
 )
+{
+    val canBeInvoiced : Boolean
+        get() {
+            return status == InvoiceStatus.PENDING
+                    || status == InvoiceStatus.PENDING_INSUFICIENTCASH
+                    || status == InvoiceStatus.PENDING_NETWORKUNAVAILABLE
+        }
+}
+
+

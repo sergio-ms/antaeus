@@ -1,4 +1,4 @@
-package io.pleo.antaeus.scheduling
+package io.pleo.antaeus.scheduling.jobs
 
 import org.quartz.Job
 import org.quartz.JobExecutionContext
@@ -12,8 +12,7 @@ import kotlinx.serialization.json.Json
 class MonthlyInvoiceJob() : Job {
 
     override fun execute(context: JobExecutionContext?) {
-
-        var customerService = ServiceFactory.getCustomerProvider()
+        val billingService = ServiceFactory.getBillingProvider()
 
         // TODO get queueConf and publisher from a factory
         var messagingConfiguration = MessagingConfiguration()
@@ -28,7 +27,7 @@ class MonthlyInvoiceJob() : Job {
         val publisher = RabbitMqMessagePublisher()
         publisher.connect(connInfo)
 
-        var customers = customerService.fetchAll()
+        val customers = billingService.GetCustomersToBillMontly()
         customers.map { customer ->
             val msg = Json.encodeToString(customer.id)
             publisher.publish(msg)

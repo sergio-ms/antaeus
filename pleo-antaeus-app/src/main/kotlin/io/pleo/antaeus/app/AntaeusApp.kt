@@ -15,12 +15,15 @@ import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
 import io.pleo.antaeus.data.InvoiceTable
 import io.pleo.antaeus.factories.ServiceFactory
-import io.pleo.antaeus.messaging.MessageConsumer
-import io.pleo.antaeus.messaging.MessagePublisher
-import io.pleo.antaeus.messaging.consumers.CustomerToInvoiceConsumer
+import io.pleo.antaeus.messaging.MessagingConfiguration
+import io.pleo.antaeus.messaging.RabbitMqMessageConsumer
+import io.pleo.antaeus.messaging.RabbitMqMessagePublisher
+import io.pleo.antaeus.messaging.processors.CustomerToInvoiceProcessor
+import io.pleo.antaeus.messaging.processors.PendingInvoiceProcessor
 import io.pleo.antaeus.rest.AntaeusRest
 import io.pleo.antaeus.scheduling.CronScheduler
-import io.pleo.antaeus.scheduling.MonthlyInvoiceJob
+import io.pleo.antaeus.scheduling.jobs.MonthlyInvoiceJob
+import io.pleo.antaeus.scheduling.SchedulerConfiguration
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.StdOutSqlLogger
@@ -34,8 +37,6 @@ import java.sql.Connection
 
 fun main() {
 
-    var consumer = CustomerToInvoiceConsumer(MessageConsumer())
-    consumer.start()
 
     // The tables to create in the database.
     val tables = arrayOf(InvoiceTable, CustomerTable)
@@ -43,10 +44,12 @@ fun main() {
     val dbFile: File = File.createTempFile("antaeus-db", ".sqlite")
     // Connect to the database and create the needed tables. Drop any existing data.
     val db = Database
-        .connect(url = "jdbc:sqlite:${dbFile.absolutePath}",
+        .connect(
+            url = "jdbc:sqlite:${dbFile.absolutePath}",
             driver = "org.sqlite.JDBC",
             user = "root",
-            password = "")
+            password = ""
+        )
         .also {
             TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
             transaction(it) {
@@ -64,31 +67,40 @@ fun main() {
     // Insert example data in the database.
     setupInitialData(dal = dal)
 
-    // Get third parties
-    val paymentProvider = getPaymentProvider()
+    // Factory required by the different jobs
+    ServiceFactory.setDal(dal)
 
     // Create core services
-    val invoiceService = InvoiceService(dal = dal)
-    val customerService = CustomerService(dal = dal)
-
-    // This is _your_ billing service to be included where you see fit
-    val billingService = BillingService(paymentProvider = paymentProvider)
+    val invoiceService = ServiceFactory.getInvoiceProvider()
+    val customerService = ServiceFactory.getCustomerProvider()
+    val billingService = ServiceFactory.getBillingProvider()
 
     // Create REST web service
     AntaeusRest(
-        invoiceService = invoiceService,
+        invoiceService = invoiceService as InvoiceService,
         customerService = customerService
     ).run()
 
-    ServiceFactory.setDal(dal)
-    var schedule = CronScheduler(
-        "MonthlyInvoiceJob",
-        "invoiceJobs",
-        "0/20 * * * * ?",
-         MonthlyInvoiceJob()
+    // Cron Job for MonthlyInvoiceJob
+    val schedConf = SchedulerConfiguration()
+    var scheduler = CronScheduler(
+        schedConf.monthlyInvoiceJobName,
+        schedConf.monthlyInvoiceJobGroup,
+        schedConf.monthlyInvoiceJobCronExpression,
+        MonthlyInvoiceJob()
     )
+    scheduler.start()
 
-    schedule.start()
+    // Create CustomerToInvoiceProcessor processor
+    CustomerToInvoiceProcessor(
+        MessagingConfiguration(), RabbitMqMessageConsumer(),
+        RabbitMqMessagePublisher(), invoiceService
+    ).start()
+
+    // Create CustomerToInvoiceProcessor processor
+    PendingInvoiceProcessor(
+        MessagingConfiguration(), RabbitMqMessageConsumer(), billingService
+    ).start()
 
 }
 
