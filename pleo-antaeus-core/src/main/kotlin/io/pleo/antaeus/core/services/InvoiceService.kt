@@ -15,8 +15,8 @@ class InvoiceService(private val dal: AntaeusDal) : InvoiceProvider {
         return dal.fetchInvoices()
     }
 
-    override fun fetchPending(customerId : Int): List<Invoice> {
-        return dal.fetchInvoicesByStatus(customerId, InvoiceStatus.PENDING)
+    override fun fetchByStatus(customerId : Int, status : InvoiceStatus): List<Invoice> {
+        return dal.fetchInvoicesByStatus(customerId, status)
     }
 
     override fun fetch(id: Int): Invoice {

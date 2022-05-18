@@ -9,8 +9,8 @@ import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.core.providers.CustomerProvider
 import io.pleo.antaeus.core.providers.InvoiceProvider
 import io.pleo.antaeus.models.*
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 
 class BillingServiceTest {
@@ -40,60 +40,60 @@ class BillingServiceTest {
     private val billingService = BillingService(paymentProvider, invoiceProvider, customerProvider)
 
     @Test
-    fun `when charge provider returns true set invoice to PAID`() {
+    fun `when charge provider returns true set invoice to PAID`()  = runBlocking {
         every { paymentProvider.charge(pendingInvoice) } returns true
         billingService.chargeInvoice(pendingInvoice.id)
         verify (exactly = 1) {invoiceProvider.updateInvoiceStatus(pendingInvoice, InvoiceStatus.PAID)}
     }
 
     @Test
-    fun `when charge provider returns false set invoice to INSUFICIENTBALANCE`() {
+    fun `when charge provider returns false set invoice to INSUFICIENTBALANCE`() = runBlocking {
         every { paymentProvider.charge(pendingInvoice) } returns false
         billingService.chargeInvoice(pendingInvoice.id)
         verify (exactly = 1) {invoiceProvider.updateInvoiceStatus(any(), InvoiceStatus.PENDING_INSUFICIENTCASH)}
     }
 
     @Test
-    fun `when charge invoice is pending cash do charge`() {
+    fun `when charge invoice is pending cash do charge`() = runBlocking {
         every { paymentProvider.charge(pendingInvoice) }.returns(true)
         billingService.chargeInvoice(pendingInvoice.id)
         verify (exactly = 1){ paymentProvider.charge(pendingInvoice) }
     }
 
     @Test
-    fun `when charge invoice is pending insuficient cash do charge`() {
+    fun `when charge invoice is pending insuficient cash do charge`() = runBlocking  {
         every { paymentProvider.charge(insuficientCashInvoice) }.returns(true)
         billingService.chargeInvoice(insuficientCashInvoice.id)
         verify (exactly = 1){ paymentProvider.charge(insuficientCashInvoice) }
     }
 
     @Test
-    fun `when charge invoice is pending network unavailable do charge`() {
+    fun `when charge invoice is pending network unavailable do charge`() = runBlocking  {
         every { paymentProvider.charge(networkUnavailableInvoice) }.returns(true)
         billingService.chargeInvoice(networkUnavailableInvoice.id)
         verify (exactly = 1){ paymentProvider.charge(networkUnavailableInvoice) }
     }
 
     @Test
-    fun `when charge invoice is paid do not charge`() {
+    fun `when charge invoice is paid do not charge`() = runBlocking {
         billingService.chargeInvoice(paidInvoice.id)
         verify (exactly = 0){ paymentProvider.charge(paidInvoice) }
     }
 
     @Test
-    fun `when charge invoice is pending invalid currency do not charge`() {
+    fun `when charge invoice is pending invalid currency do not charge`() = runBlocking  {
         billingService.chargeInvoice(invalidCcyInvoice.id)
         verify (exactly = 0){ paymentProvider.charge(paidInvoice) }
     }
 
     @Test
-    fun `when charge invoice is pending invalid customer do not charge`() {
+    fun `when charge invoice is pending invalid customer do not charge`() = runBlocking  {
         billingService.chargeInvoice(invalidCustomerInvoice.id)
         verify (exactly = 0){ paymentProvider.charge(paidInvoice) }
     }
 
     @Test
-    fun `when charge invoice throws CustomerNotFoundException status is set to PENDING_INVALIDCUSTOMER`() {
+    fun `when charge invoice throws CustomerNotFoundException status is set to PENDING_INVALIDCUSTOMER`() = runBlocking  {
         every { paymentProvider.charge(pendingInvoice) }
             .throws(CustomerNotFoundException(pendingInvoice.customerId))
 
@@ -102,7 +102,7 @@ class BillingServiceTest {
     }
 
     @Test
-    fun `when charge invoice throws CurrencyMismatchException status is set to PENDING_INVALIDCURRENCY`() {
+    fun `when charge invoice throws CurrencyMismatchException status is set to PENDING_INVALIDCURRENCY`() = runBlocking  {
         every { paymentProvider.charge(pendingInvoice) }
             .throws(CurrencyMismatchException(pendingInvoice.id, pendingInvoice.customerId))
 
@@ -111,9 +111,9 @@ class BillingServiceTest {
     }
 
     @Test
-    fun `GetCustomersToBillMonthly should get fetchCustomersWithPendingInvoices from customerProvider`() {
+    fun `GetCustomersToBillMonthly should get fetchCustomersWithPendingInvoices from customerProvider`()  = runBlocking {
 
-        billingService.GetCustomersToBillMontly()
+        billingService.getCustomersToBillMonthly()
         verify (exactly = 1) {customerProvider.fetchCustomersWithPendingInvoices()}
     }
 

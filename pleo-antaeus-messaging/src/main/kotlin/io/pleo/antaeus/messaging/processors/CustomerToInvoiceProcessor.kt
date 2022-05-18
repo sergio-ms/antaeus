@@ -2,6 +2,8 @@ package io.pleo.antaeus.messaging.processors
 
 import io.pleo.antaeus.core.providers.InvoiceProvider
 import io.pleo.antaeus.messaging.*
+import io.pleo.antaeus.messaging.messages.CustomerToInvoiceMsg
+import io.pleo.antaeus.messaging.messages.InvoiceInfoMsg
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -14,6 +16,7 @@ class CustomerToInvoiceProcessor(
     private val invoiceProvider: InvoiceProvider
 ) {
     private val consumerTag = "CustomerToInvoiceConsumer"
+
 
     fun start() {
         var connInfo = ConnectionInfo()
@@ -32,13 +35,22 @@ class CustomerToInvoiceProcessor(
     }
 
     private fun onDeliverAction(consumerTag: String?, message: String) {
+        var connInfo = ConnectionInfo()
+        connInfo.connectionName = conf.connectionName
+        connInfo.exchange = conf.invoicesExchange
+        connInfo.queue = conf.pendingInvoicesQueue
+        connInfo.exchangeType = conf.exchangeType
+        connInfo.routingKey = conf.routingKey
 
-        val customerId = Json.decodeFromString<Int>(message)
-        println("['$consumerTag'] Processing invoices for customer $customerId")
-        invoiceProvider.fetchPending(customerId)
-            .map { invoice ->
-                val msg = Json.encodeToString(invoice.id)
-                messagePublisher.publish(msg)
+        val customerToInvoice = Json.decodeFromString<CustomerToInvoiceMsg>(message)
+        println("['$consumerTag'] Processing invoices for customer ${customerToInvoice.customerId}")
+        // TODO use status in msg
+        invoiceProvider.fetchByStatus(customerToInvoice.customerId, customerToInvoice.statusToProcess)
+            .map { invoice -> invoice.id  }
+            .chunked(10)
+            .map { invoiceList ->
+                val msg = Json.encodeToString(InvoiceInfoMsg(invoiceList))
+                messagePublisher.publish(msg, connInfo)
             }
     }
 

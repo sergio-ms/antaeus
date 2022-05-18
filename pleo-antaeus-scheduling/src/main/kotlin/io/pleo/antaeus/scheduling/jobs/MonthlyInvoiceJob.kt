@@ -6,11 +6,18 @@ import io.pleo.antaeus.factories.ServiceFactory
 import io.pleo.antaeus.messaging.ConnectionInfo
 import io.pleo.antaeus.messaging.MessagingConfiguration
 import io.pleo.antaeus.messaging.RabbitMqMessagePublisher
+import io.pleo.antaeus.messaging.messages.CustomerToInvoiceMsg
+import io.pleo.antaeus.models.InvoiceStatus
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class MonthlyInvoiceJob() : Job {
 
+    /***
+     * This scheduler is in charge of triggering the payment operation for all customers
+     * that have at least one pending invoice on these invoices that are in PAY status only
+     */
     override fun execute(context: JobExecutionContext?) {
         val billingService = ServiceFactory.getBillingProvider()
 
@@ -26,11 +33,12 @@ class MonthlyInvoiceJob() : Job {
 
         val publisher = RabbitMqMessagePublisher()
         publisher.connect(connInfo)
-
-        val customers = billingService.GetCustomersToBillMontly()
-        customers.map { customer ->
-            val msg = Json.encodeToString(customer.id)
-            publisher.publish(msg)
+        runBlocking {
+            val customers = billingService.getCustomersToBillMonthly()
+            customers.map { customer ->
+                val msg = Json.encodeToString(CustomerToInvoiceMsg(customer.id, InvoiceStatus.PENDING))
+                publisher.publish(msg, connInfo)
+            }
         }
     }
 }

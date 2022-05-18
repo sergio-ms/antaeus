@@ -3,6 +3,7 @@ package io.pleo.antaeus.core.providers
 import io.pleo.antaeus.models.Customer
 
 interface BillingProvider {
-    fun chargeInvoice(invoiceId : Int)
-    fun GetCustomersToBillMontly(): List<Customer>
+    suspend fun chargeInvoices(invoiceIds: List<Int>)
+    suspend fun chargeInvoice(invoiceId : Int)
+    suspend fun getCustomersToBillMonthly(): List<Customer>
 }
