@@ -1,44 +1,40 @@
 package io.pleo.antaeus.messaging
 
 import com.rabbitmq.client.AMQP
-import com.rabbitmq.client.Channel
 import com.rabbitmq.client.ConnectionFactory
+import io.pleo.antaeus.logging.PleoLogger
 import java.nio.charset.StandardCharsets
 
-class RabbitMqMessagePublisher() : MessagePublisher {
-    private val connectionName: String = "amqp://guest:guest@localhost:5672/"
+class RabbitMqMessagePublisher(private val logger : PleoLogger) : MessagePublisher {
+    override fun connect(connInfo: QueueInfo, ) {
 
-    //private var channel: Channel? = null
-    private var connInfo : ConnectionInfo? = null
-
-    override fun connect(connInfo : ConnectionInfo, ) {
-        this.connInfo = connInfo
-        val factory = ConnectionFactory()
-        val connection = factory.newConnection(connectionName).use { connection ->
-
-            var channel = connection.createChannel()
-            channel.exchangeDeclare(connInfo.exchange, connInfo.exchangeType, true)
-            channel.queueDeclare(connInfo.queue, true, false, false, emptyMap())
-            channel.queueBind(connInfo.queue, connInfo.exchange, connInfo.routingKey)
-        }
     }
 
-    override fun publish(message: String) {
-        val factory = ConnectionFactory()
-        val connection = factory.newConnection(connectionName).use { connection ->
+    override fun publish(message: String, queueInfo: QueueInfo) {
+        try {
+            val factory = ConnectionFactory()
+            factory.host = queueInfo.connectionInfo.host
+            factory.username = queueInfo.connectionInfo.username
+            factory.password = queueInfo.connectionInfo.password
+            factory.port = queueInfo.connectionInfo.port
+            factory.virtualHost = queueInfo.connectionInfo.virtualHost
 
-            var channel = connection.createChannel()
-            channel.exchangeDeclare(connInfo?.exchange, connInfo?.exchangeType, true)
-            channel.queueDeclare(connInfo?.queue, true, false, false, emptyMap())
-            channel.queueBind(connInfo?.queue, connInfo?.exchange, connInfo?.routingKey)
+            val connection = factory.newConnection().use { connection ->
 
-            // TODO: Check if channel is null and throw exception
-            var props = AMQP.BasicProperties()
-            channel.basicPublish(connInfo?.exchange, connInfo?.routingKey, props, message.toByteArray(StandardCharsets.UTF_8)
-            )
+                var channel = connection.createChannel()
+                channel.exchangeDeclare(queueInfo.exchange, queueInfo.exchangeType, true)
+                channel.queueDeclare(queueInfo.queue, true, false, false, emptyMap())
+                channel.queueBind(queueInfo.queue, queueInfo?.exchange, queueInfo.routingKey)
+
+                var props = AMQP.BasicProperties()
+                channel.basicPublish(
+                    queueInfo?.exchange, queueInfo?.routingKey, props,
+                    message.toByteArray(StandardCharsets.UTF_8)
+                )
+            }
         }
-
-
-
+        catch (e: Exception) {
+            logger.logError("${this.javaClass.name} Unable to publish message. ${e.message}. $queueInfo.")
+        }
     }
 }

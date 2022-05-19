@@ -7,6 +7,7 @@ import io.pleo.antaeus.core.services.BillingService
 import io.pleo.antaeus.core.services.CustomerService
 import io.pleo.antaeus.core.services.InvoiceService
 import io.pleo.antaeus.data.AntaeusDal
+import io.pleo.antaeus.logging.DefaultLogger
 import io.pleo.antaeus.models.Invoice
 import kotlin.random.Random
 
@@ -25,7 +26,7 @@ object ServiceFactory {
         var paymentProvider = getPaymentProvider()
         var invoiceProvider = getInvoiceProvider()
 
-        return BillingService(paymentProvider, invoiceProvider, getCustomerProvider())
+        return BillingService(paymentProvider, invoiceProvider, getCustomerProvider(), DefaultLogger())
     }
 
     fun getInvoiceProvider(): InvoiceProvider {

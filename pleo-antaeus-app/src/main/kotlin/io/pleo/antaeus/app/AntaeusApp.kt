@@ -12,9 +12,9 @@ import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
 import io.pleo.antaeus.data.InvoiceTable
 import io.pleo.antaeus.factories.ServiceFactory
+import io.pleo.antaeus.logging.LoggerFactory
 import io.pleo.antaeus.messaging.MessagingConfiguration
-import io.pleo.antaeus.messaging.RabbitMqMessageConsumer
-import io.pleo.antaeus.messaging.RabbitMqMessagePublisher
+import io.pleo.antaeus.messaging.MessagingFactory
 import io.pleo.antaeus.messaging.processors.CustomerToInvoiceProcessor
 import io.pleo.antaeus.messaging.processors.PendingInvoiceProcessor
 import io.pleo.antaeus.rest.AntaeusRest
@@ -29,11 +29,16 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import setupInitialData
 import java.io.File
+import java.io.FileInputStream
 import java.sql.Connection
+import java.util.*
 
 
 fun main() {
-
+//    val file = File("/var/www/html/config.properties")
+//
+//    val prop = Properties()
+//    FileInputStream(file).use { prop.load(it) }
 
     // The tables to create in the database.
     val tables = arrayOf(InvoiceTable, CustomerTable)
@@ -90,13 +95,13 @@ fun main() {
 
     // Create CustomerToInvoiceProcessor processor
     CustomerToInvoiceProcessor(
-        MessagingConfiguration(), RabbitMqMessageConsumer(),
-        RabbitMqMessagePublisher(), invoiceService
+        MessagingConfiguration(), MessagingFactory.getMessageConsumer(),
+        MessagingFactory.getMessagePublisher(), invoiceService, LoggerFactory.getLogger()
     ).start()
 
     // Create CustomerToInvoiceProcessor processor
     PendingInvoiceProcessor(
-        MessagingConfiguration(), RabbitMqMessageConsumer(), billingService
+        MessagingConfiguration(), MessagingFactory.getMessageConsumer(), billingService, LoggerFactory.getLogger()
     ).start()
 
 }

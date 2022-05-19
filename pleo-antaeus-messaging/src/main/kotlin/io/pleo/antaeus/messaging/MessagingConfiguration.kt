@@ -12,7 +12,17 @@ class MessagingConfiguration {
     val invoicesExchange: String = "InvoicesExchange"
     val customersExchange : String = "CustomersExchange"
 
-    val connectionName : String = "amqp://guest:guest@localhost:5672/"
+    val connInfo = ConnectionInfo()
     val routingKey = "default"
     val exchangeType = "direct"
+}
+
+class ConnectionInfo
+{
+    var host = "localhost"
+    //var host = "pleo-antaeus-queue"
+    var username = "guest"
+    val password = "guest"
+    val port = 5672
+    val virtualHost = "/"
 }

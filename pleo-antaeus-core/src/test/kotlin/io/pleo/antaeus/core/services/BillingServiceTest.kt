@@ -8,6 +8,7 @@ import io.pleo.antaeus.core.exceptions.CustomerNotFoundException
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.core.providers.CustomerProvider
 import io.pleo.antaeus.core.providers.InvoiceProvider
+import io.pleo.antaeus.logging.PleoLogger
 import io.pleo.antaeus.models.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -21,8 +22,9 @@ class BillingServiceTest {
     private val insuficientCashInvoice = Invoice(5, 200, Money(BigDecimal(1001), Currency.EUR), InvoiceStatus.PENDING_INSUFICIENTCASH)
     private val networkUnavailableInvoice = Invoice(6, 200, Money(BigDecimal(1001), Currency.EUR), InvoiceStatus.PENDING_NETWORKUNAVAILABLE)
 
-    private val paymentProvider = mockk<PaymentProvider> {    }
-    private val invoiceProvider = mockk<InvoiceProvider> {
+
+    private val mockPaymentProvider = mockk<PaymentProvider> {    }
+    private val mockInvoiceProvider = mockk<InvoiceProvider> {
         every { fetch(pendingInvoice.id) } returns pendingInvoice
         every { fetch(paidInvoice.id) } returns paidInvoice
         every { fetch(invalidCcyInvoice.id) } returns invalidCcyInvoice
@@ -31,90 +33,91 @@ class BillingServiceTest {
         every { fetch(networkUnavailableInvoice.id) } returns networkUnavailableInvoice
         every { updateInvoiceStatus(any(), any()) }.returns(Unit)
     }
-    private val customerProvider = mockk<CustomerProvider>{
+    private val mockCustomerProvider = mockk<CustomerProvider>{
         every { fetchCustomersWithPendingInvoices() }.returns(listOf())
     }
+    private val mockLogger = mockk<PleoLogger>()
 
 
 
-    private val billingService = BillingService(paymentProvider, invoiceProvider, customerProvider)
+    private val billingService = BillingService(mockPaymentProvider, mockInvoiceProvider, mockCustomerProvider, mockLogger)
 
     @Test
     fun `when charge provider returns true set invoice to PAID`()  = runBlocking {
-        every { paymentProvider.charge(pendingInvoice) } returns true
+        every { mockPaymentProvider.charge(pendingInvoice) } returns true
         billingService.chargeInvoice(pendingInvoice.id)
-        verify (exactly = 1) {invoiceProvider.updateInvoiceStatus(pendingInvoice, InvoiceStatus.PAID)}
+        verify (exactly = 1) {mockInvoiceProvider.updateInvoiceStatus(pendingInvoice, InvoiceStatus.PAID)}
     }
 
     @Test
     fun `when charge provider returns false set invoice to INSUFICIENTBALANCE`() = runBlocking {
-        every { paymentProvider.charge(pendingInvoice) } returns false
+        every { mockPaymentProvider.charge(pendingInvoice) } returns false
         billingService.chargeInvoice(pendingInvoice.id)
-        verify (exactly = 1) {invoiceProvider.updateInvoiceStatus(any(), InvoiceStatus.PENDING_INSUFICIENTCASH)}
+        verify (exactly = 1) {mockInvoiceProvider.updateInvoiceStatus(any(), InvoiceStatus.PENDING_INSUFICIENTCASH)}
     }
 
     @Test
     fun `when charge invoice is pending cash do charge`() = runBlocking {
-        every { paymentProvider.charge(pendingInvoice) }.returns(true)
+        every { mockPaymentProvider.charge(pendingInvoice) }.returns(true)
         billingService.chargeInvoice(pendingInvoice.id)
-        verify (exactly = 1){ paymentProvider.charge(pendingInvoice) }
+        verify (exactly = 1){ mockPaymentProvider.charge(pendingInvoice) }
     }
 
     @Test
     fun `when charge invoice is pending insuficient cash do charge`() = runBlocking  {
-        every { paymentProvider.charge(insuficientCashInvoice) }.returns(true)
+        every { mockPaymentProvider.charge(insuficientCashInvoice) }.returns(true)
         billingService.chargeInvoice(insuficientCashInvoice.id)
-        verify (exactly = 1){ paymentProvider.charge(insuficientCashInvoice) }
+        verify (exactly = 1){ mockPaymentProvider.charge(insuficientCashInvoice) }
     }
 
     @Test
     fun `when charge invoice is pending network unavailable do charge`() = runBlocking  {
-        every { paymentProvider.charge(networkUnavailableInvoice) }.returns(true)
+        every { mockPaymentProvider.charge(networkUnavailableInvoice) }.returns(true)
         billingService.chargeInvoice(networkUnavailableInvoice.id)
-        verify (exactly = 1){ paymentProvider.charge(networkUnavailableInvoice) }
+        verify (exactly = 1){ mockPaymentProvider.charge(networkUnavailableInvoice) }
     }
 
     @Test
     fun `when charge invoice is paid do not charge`() = runBlocking {
         billingService.chargeInvoice(paidInvoice.id)
-        verify (exactly = 0){ paymentProvider.charge(paidInvoice) }
+        verify (exactly = 0){ mockPaymentProvider.charge(paidInvoice) }
     }
 
     @Test
     fun `when charge invoice is pending invalid currency do not charge`() = runBlocking  {
         billingService.chargeInvoice(invalidCcyInvoice.id)
-        verify (exactly = 0){ paymentProvider.charge(paidInvoice) }
+        verify (exactly = 0){ mockPaymentProvider.charge(paidInvoice) }
     }
 
     @Test
     fun `when charge invoice is pending invalid customer do not charge`() = runBlocking  {
         billingService.chargeInvoice(invalidCustomerInvoice.id)
-        verify (exactly = 0){ paymentProvider.charge(paidInvoice) }
+        verify (exactly = 0){ mockPaymentProvider.charge(paidInvoice) }
     }
 
     @Test
     fun `when charge invoice throws CustomerNotFoundException status is set to PENDING_INVALIDCUSTOMER`() = runBlocking  {
-        every { paymentProvider.charge(pendingInvoice) }
+        every { mockPaymentProvider.charge(pendingInvoice) }
             .throws(CustomerNotFoundException(pendingInvoice.customerId))
 
         billingService.chargeInvoice(pendingInvoice.id)
-        verify (exactly = 1) {invoiceProvider.updateInvoiceStatus(any(), InvoiceStatus.PENDING_INVALIDCUSTOMER)}
+        verify (exactly = 1) {mockInvoiceProvider.updateInvoiceStatus(any(), InvoiceStatus.PENDING_INVALIDCUSTOMER)}
     }
 
     @Test
     fun `when charge invoice throws CurrencyMismatchException status is set to PENDING_INVALIDCURRENCY`() = runBlocking  {
-        every { paymentProvider.charge(pendingInvoice) }
+        every { mockPaymentProvider.charge(pendingInvoice) }
             .throws(CurrencyMismatchException(pendingInvoice.id, pendingInvoice.customerId))
 
         billingService.chargeInvoice(pendingInvoice.id)
-        verify (exactly = 1) {invoiceProvider.updateInvoiceStatus(any(), InvoiceStatus.PENDING_INVALIDCURRENCY)}
+        verify (exactly = 1) {mockInvoiceProvider.updateInvoiceStatus(any(), InvoiceStatus.PENDING_INVALIDCURRENCY)}
     }
 
     @Test
     fun `GetCustomersToBillMonthly should get fetchCustomersWithPendingInvoices from customerProvider`()  = runBlocking {
 
         billingService.getCustomersToBillMonthly()
-        verify (exactly = 1) {customerProvider.fetchCustomersWithPendingInvoices()}
+        verify (exactly = 1) {mockCustomerProvider.fetchCustomersWithPendingInvoices()}
     }
 
 }
