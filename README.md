@@ -210,3 +210,4 @@ upon the application startup. The configuration could be loaded from config file
 - Review the way that the connection to the rabbitmq is established to check if there
 could be a more efficient way to reuse the same connection when sending multiple messages
 in a batch.
+- Replace factories by a dependency container such as Kodein-DI
