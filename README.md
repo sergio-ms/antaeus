@@ -188,7 +188,9 @@ flowchart LR
     CustomersToInvoiceQueue{{CustomersToInvoiceQueue}}
     PendingInvoicesQueue{{PendingInvoicesQueue}}
 
-    Scheduler --> CustomersToInvoiceQueue
+    DefaultersReBillingJob --> CustomersToInvoiceQueue
+    OrdinaryBillingJob --> CustomersToInvoiceQueue
+    UrgentReBillingJob --> CustomersToInvoiceQueue
     CustomersToInvoiceQueue --> CustomerToInvoiceProcessor
     CustomerToInvoiceProcessor --> PendingInvoicesQueue
     PendingInvoicesQueue --> PendingInvoiceProcessor
