@@ -1,9 +1,20 @@
 package io.pleo.antaeus.scheduling
 
 class SchedulerConfiguration {
-    val ordinaryInvoicingJobCronExpression : String = "0/5 * * * * ?"
-    val urgentInvoicingJobCronExpression : String = "0/5 * * * * ?"
-    val defaultersInvoicingJobCronExpression : String = "0/5 * * * * ?"
+    //Cron expression format: second, minute, hour, day of month, month, day(s) of week
+
+
+    val ordinaryBillingJobCronExpression : String = "0 0 0 1 * ?"   // -> First of every month at midnight
+    val urgentBillingJobCronExpression : String = "0 0 * * * ?"     // -> Every hour o'clock
+    val defaultersBillingJobCronExpression : String = "0 0 0 * * ?" // -> Every day at midnight
+
+
+    // Debug
+    //val ordinaryBillingJobCronExpression : String = "0/10 * * * * ?"
+    //val urgentBillingJobCronExpression : String = "0/10 * * * * ?"
+    //val defaultersBillingJobCronExpression : String = "0/10 * * * * ?"
+
+
     val ordinaryBillingJobName : String = "OrdinaryBillingJob"
     val urgentBillingJobName : String = "UrgentBillingJob"
     val defaultersBillingJobName : String = "DefaultersBillingJob"

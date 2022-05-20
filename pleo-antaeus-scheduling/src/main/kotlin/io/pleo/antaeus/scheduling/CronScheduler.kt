@@ -1,5 +1,6 @@
 package io.pleo.antaeus.scheduling
 
+import io.pleo.antaeus.logging.PleoLogger
 import org.quartz.CronScheduleBuilder.cronSchedule
 import org.quartz.JobBuilder.*
 import org.quartz.Scheduler
@@ -12,7 +13,9 @@ import org.quartz.Job
 class CronScheduler(private val jobName : String,
                     private val jobGroup : String,
                     private val cronExpression : String,
-                    private val jobClass : Job) {
+                    private val jobClass : Job,
+                    private val logger : PleoLogger
+                    ) {
     private val scheduler: Scheduler = StdSchedulerFactory.getDefaultScheduler()
 
     fun start()
@@ -25,11 +28,11 @@ class CronScheduler(private val jobName : String,
         val trigger: Trigger = newTrigger()
             .startNow()
             .withSchedule(
-              //cronSchedule("0/30 * * * * ?")
               cronSchedule(cronExpression)
             )
             .build()
         scheduler.scheduleJob(job, trigger)
+        logger.logInfo("Next execution of ${jobClass.javaClass.name} at ${trigger.nextFireTime}")
     }
 
     fun shutdown()

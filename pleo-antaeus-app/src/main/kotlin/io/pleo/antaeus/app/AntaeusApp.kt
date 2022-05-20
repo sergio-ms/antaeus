@@ -107,8 +107,9 @@ private fun startSchedulers() {
     var ordinaryBillingJobScheduler = CronScheduler(
         conf.ordinaryBillingJobName,
         conf.billingJobGroup,
-        conf.ordinaryInvoicingJobCronExpression,
-        OrdinaryBillingJob()
+        conf.ordinaryBillingJobCronExpression,
+        OrdinaryBillingJob(),
+        LoggerFactory.getLogger()
     )
     ordinaryBillingJobScheduler.start()
 
@@ -116,8 +117,9 @@ private fun startSchedulers() {
     var urgentReBillingJobScheduler = CronScheduler(
         conf.urgentBillingJobName,
         conf.billingJobGroup,
-        conf.urgentInvoicingJobCronExpression,
-        UrgentReBillingJob()
+        conf.urgentBillingJobCronExpression,
+        UrgentReBillingJob(),
+        LoggerFactory.getLogger()
     )
     urgentReBillingJobScheduler.start()
 
@@ -125,8 +127,9 @@ private fun startSchedulers() {
     var defaultersReBillingJobScheduler = CronScheduler(
         conf.defaultersBillingJobName,
         conf.billingJobGroup,
-        conf.defaultersInvoicingJobCronExpression,
-        DefaultersReBillingJob()
+        conf.defaultersBillingJobCronExpression,
+        DefaultersReBillingJob(),
+        LoggerFactory.getLogger()
     )
     defaultersReBillingJobScheduler.start()
 }
