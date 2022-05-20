@@ -84,12 +84,12 @@ class AntaeusDal(private val db: Database) {
         }
     }
 
-    fun fetchCustomersWithPendingInvoices(): List<Customer> {
+    fun fetchCustomersWithInvoicesAtStatus(status : InvoiceStatus): List<Customer> {
         return transaction(db) {
             CustomerTable
                 .join(InvoiceTable, JoinType.INNER,
                     additionalConstraint =
-                    {CustomerTable.id eq InvoiceTable.customerId and InvoiceTable.status.eq(InvoiceStatus.PENDING.toString())})
+                    {CustomerTable.id eq InvoiceTable.customerId and InvoiceTable.status.eq(status.toString())})
                 .selectAll()
                 .map { it.toCustomer() }
         }
@@ -105,5 +105,7 @@ class AntaeusDal(private val db: Database) {
 
         return fetchCustomer(id)
     }
+
+
 
 }

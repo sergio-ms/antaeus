@@ -1,7 +1,6 @@
 package io.pleo.antaeus.messaging
 
 class QueueInfo(
-    var connectionInfo: ConnectionInfo,
     var exchange: String,
     var  exchangeType: String,
     var queue: String,

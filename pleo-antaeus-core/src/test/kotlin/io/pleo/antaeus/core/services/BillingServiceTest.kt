@@ -34,13 +34,22 @@ class BillingServiceTest {
         every { updateInvoiceStatus(any(), any()) }.returns(Unit)
     }
     private val mockCustomerProvider = mockk<CustomerProvider>{
-        every { fetchCustomersWithPendingInvoices() }.returns(listOf())
+        every { fetchCustomersWithInvoicesAtStatus(any()) }.returns(listOf())
     }
     private val mockLogger = mockk<PleoLogger>()
 
 
 
     private val billingService = BillingService(mockPaymentProvider, mockInvoiceProvider, mockCustomerProvider, mockLogger)
+
+    @Test
+    fun `when charge provider 5 invoices paymentProver provider is called 15 times`()  = runBlocking {
+        every { mockPaymentProvider.charge(pendingInvoice) } returns true
+        val invoices = listOf(1, 1, 1, 1, 1)
+        billingService.chargeInvoices(invoices)
+
+        verify (exactly = 5) {mockPaymentProvider.charge(pendingInvoice)}
+    }
 
     @Test
     fun `when charge provider returns true set invoice to PAID`()  = runBlocking {
@@ -114,10 +123,24 @@ class BillingServiceTest {
     }
 
     @Test
-    fun `GetCustomersToBillMonthly should get fetchCustomersWithPendingInvoices from customerProvider`()  = runBlocking {
+    fun `GetCustomersToBillOrdinary should fetch customers with PENDING`()  = runBlocking {
 
-        billingService.getCustomersToBillMonthly()
-        verify (exactly = 1) {mockCustomerProvider.fetchCustomersWithPendingInvoices()}
+        billingService.getCustomersToBillOrdinarily()
+        verify (exactly = 1) {mockCustomerProvider.fetchCustomersWithInvoicesAtStatus(InvoiceStatus.PENDING)}
+    }
+
+    @Test
+    fun `GetDefaulterCustomers should fetch customers with PENDING_INSUFICIENTCASH`()  = runBlocking {
+
+        billingService.getDefaulterCustomers()
+        verify (exactly = 1) {mockCustomerProvider.fetchCustomersWithInvoicesAtStatus(InvoiceStatus.PENDING_INSUFICIENTCASH)}
+    }
+
+    @Test
+    fun `GetCustomersToReBillUrgently should fetch customers with PENDING_NETWORKUNAVAILABLE`()  = runBlocking {
+
+        billingService.getCustomersToReBillUrgently()
+        verify (exactly = 1) {mockCustomerProvider.fetchCustomersWithInvoicesAtStatus(InvoiceStatus.PENDING_NETWORKUNAVAILABLE)}
     }
 
 }

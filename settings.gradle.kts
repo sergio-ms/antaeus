@@ -5,5 +5,6 @@ include(
     "pleo-antaeus-app",
     "pleo-antaeus-core",
     "pleo-antaeus-data",
-    "pleo-antaeus-scheduling")
-include("pleo-antaeus-messaging")
+    "pleo-antaeus-scheduling",
+    "pleo-antaeus-messaging")
+

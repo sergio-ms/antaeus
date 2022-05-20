@@ -21,15 +21,6 @@ class CustomerToInvoiceProcessor(
 
 
     fun start() {
-        var queueInfo = QueueInfo(
-            conf.connInfo,
-            conf.invoicesExchange,
-            conf.exchangeType,
-            conf.pendingInvoicesQueue,
-            conf.exchangeType,
-            conf.routingKey)
-
-        messagePublisher.connect(queueInfo)
         messageConsumer.subscribe(
             conf.connInfo,
             conf.customersToInvoiceQueue,
@@ -40,7 +31,6 @@ class CustomerToInvoiceProcessor(
     private fun onDeliverAction(consumerTag: String?, message: String) {
         try {
             var queueInfo = QueueInfo(
-                conf.connInfo,
                 conf.invoicesExchange,
                 conf.exchangeType,
                 conf.pendingInvoicesQueue,
@@ -50,7 +40,6 @@ class CustomerToInvoiceProcessor(
 
             val customerToInvoice = Json.decodeFromString<CustomerToInvoiceMsg>(message)
             println("['$consumerTag'] Processing invoices for customer ${customerToInvoice.customerId}")
-            // TODO use status in msg
             invoiceProvider.fetchByStatus(customerToInvoice.customerId, customerToInvoice.statusToProcess)
                 .map { invoice -> invoice.id }
                 .chunked(InvoiceInfoMsg.maxMsgSize)

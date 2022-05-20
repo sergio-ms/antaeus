@@ -7,6 +7,8 @@
 
 package io.pleo.antaeus.app
 
+import io.pleo.antaeus.core.providers.BillingProvider
+import io.pleo.antaeus.core.providers.InvoiceProvider
 import io.pleo.antaeus.core.services.InvoiceService
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
@@ -19,8 +21,10 @@ import io.pleo.antaeus.messaging.processors.CustomerToInvoiceProcessor
 import io.pleo.antaeus.messaging.processors.PendingInvoiceProcessor
 import io.pleo.antaeus.rest.AntaeusRest
 import io.pleo.antaeus.scheduling.CronScheduler
-import io.pleo.antaeus.scheduling.jobs.MonthlyInvoiceJob
+import io.pleo.antaeus.scheduling.jobs.OrdinaryBillingJob
 import io.pleo.antaeus.scheduling.SchedulerConfiguration
+import io.pleo.antaeus.scheduling.jobs.DefaultersReBillingJob
+import io.pleo.antaeus.scheduling.jobs.UrgentReBillingJob
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.StdOutSqlLogger
@@ -29,16 +33,10 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import setupInitialData
 import java.io.File
-import java.io.FileInputStream
 import java.sql.Connection
-import java.util.*
 
 
 fun main() {
-//    val file = File("/var/www/html/config.properties")
-//
-//    val prop = Properties()
-//    FileInputStream(file).use { prop.load(it) }
 
     // The tables to create in the database.
     val tables = arrayOf(InvoiceTable, CustomerTable)
@@ -83,16 +81,14 @@ fun main() {
         customerService = customerService
     ).run()
 
-    // Cron Job for MonthlyInvoiceJob
-    val schedConf = SchedulerConfiguration()
-    var scheduler = CronScheduler(
-        schedConf.monthlyInvoiceJobName,
-        schedConf.monthlyInvoiceJobGroup,
-        schedConf.monthlyInvoiceJobCronExpression,
-        MonthlyInvoiceJob()
-    )
-    scheduler.start()
+    startSchedulers()
+    registerProcessors(invoiceService, billingService)
+}
 
+private fun registerProcessors(
+    invoiceService: InvoiceProvider,
+    billingService: BillingProvider
+) {
     // Create CustomerToInvoiceProcessor processor
     CustomerToInvoiceProcessor(
         MessagingConfiguration(), MessagingFactory.getMessageConsumer(),
@@ -103,7 +99,36 @@ fun main() {
     PendingInvoiceProcessor(
         MessagingConfiguration(), MessagingFactory.getMessageConsumer(), billingService, LoggerFactory.getLogger()
     ).start()
+}
 
+private fun startSchedulers() {
+    val conf = SchedulerConfiguration()
+    // Start job for ordinary billing
+    var ordinaryBillingJobScheduler = CronScheduler(
+        conf.ordinaryBillingJobName,
+        conf.billingJobGroup,
+        conf.ordinaryInvoicingJobCronExpression,
+        OrdinaryBillingJob()
+    )
+    ordinaryBillingJobScheduler.start()
+
+    // Start job for urgent re-billing
+    var urgentReBillingJobScheduler = CronScheduler(
+        conf.urgentBillingJobName,
+        conf.billingJobGroup,
+        conf.urgentInvoicingJobCronExpression,
+        UrgentReBillingJob()
+    )
+    urgentReBillingJobScheduler.start()
+
+    // Start job for defaulters
+    var defaultersReBillingJobScheduler = CronScheduler(
+        conf.defaultersBillingJobName,
+        conf.billingJobGroup,
+        conf.defaultersInvoicingJobCronExpression,
+        DefaultersReBillingJob()
+    )
+    defaultersReBillingJobScheduler.start()
 }
 
 

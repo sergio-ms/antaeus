@@ -8,6 +8,7 @@ import io.pleo.antaeus.core.exceptions.CustomerNotFoundException
 import io.pleo.antaeus.core.providers.CustomerProvider
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.models.Customer
+import io.pleo.antaeus.models.InvoiceStatus
 
 class CustomerService(private val dal: AntaeusDal) : CustomerProvider {
     override fun fetchAll(): List<Customer> {
@@ -18,7 +19,9 @@ class CustomerService(private val dal: AntaeusDal) : CustomerProvider {
         return dal.fetchCustomer(id) ?: throw CustomerNotFoundException(id)
     }
 
-    override fun fetchCustomersWithPendingInvoices(): List<Customer> {
-        return dal.fetchCustomersWithPendingInvoices()
+
+
+    override fun fetchCustomersWithInvoicesAtStatus(status : InvoiceStatus): List<Customer> {
+        return dal.fetchCustomersWithInvoicesAtStatus(status)
     }
 }

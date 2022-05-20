@@ -69,12 +69,21 @@ The code given is structured as follows. Feel free however to modify the structu
 |       Module interfacing with the database. Contains the database 
 |       models, mappings and access layer.
 |
+├── pleo-antaeus-messaging
+|       Module that contains all the messaging specific functionaly. It defines
+|       the messaging consumers and publisher
+|
 ├── pleo-antaeus-models
 |       Definition of the Internal and API models used throughout the
 |       application.
 |
 └── pleo-antaeus-rest
-        Entry point for HTTP REST API. This is where the routes are defined.
+|        Entry point for HTTP REST API. This is where the routes are defined.
+|        
+└── pleo-antaeus-scheduling
+         Module that contains all the scheduling functionaly such as the different
+         scheduled jobs
+         
 ```
 
 ### Main Libraries and dependencies
@@ -125,6 +134,13 @@ very lightweight allowing to finish before a new schedule is reached. It is expe
 be in charge of completing them. The intention is to device the task in the smaller chunks as we can and have many replicas
 consuming and processing those chunks of work.
 
+The different components have been isolated in separated modules. These modules depend on the business 
+layer (pleo-antaeus-core) but not the other way around. The business layer focus only in writing the business
+specific logic and know nothing about the messaging or the scheduler behaviour. This is intended and is a great
+decoupling. The scheduling and the queueing layer could be easily replaced without having to modify the business layer 
+at all. In fact, it could be very likely that the queuing layer could use any other queue system such as Kafka
+and that would require the replacement of the existing queueing project but nothing else.
+
 
 ### Communication
 One of the advantages of having a monolithic solution is the simplicity when we can to communicate different components.
@@ -165,3 +181,32 @@ flowchart LR
     CustomerToInvoiceProcessor --> PendingInvoicesQueue
     PendingInvoicesQueue --> PendingInvoiceProcessor
 ```
+
+## Use of interfaces
+In order to decouple the different components I've made use of interfaces to define the contract of the different
+components. 
+
+## Async programming
+Methods such as `charge` in the `PaymentProvider` are expected to be slow. Because of that
+they have been implement using Coroutines. They can potentially be blocked, however with this
+approach the execution of the Processor thread can continue processing another invoice
+in the batch.
+
+For real live projects all methods that make a network request, database access
+etc. that could potentially require the suspension of the execution thread should use
+this async pattern.
+
+## TODO
+Next there is a list of improvements that I improve/include apply if I had more time: 
+
+- Run api, scheduler and consumer each one in a separate app so that they can
+  be containerized separately and potentially scale up/down then individually
+- The config classes such as `SchedulerConfiguration` or `MessagingConfiguration` should set
+upon the application startup. The configuration could be loaded from config files for example. 
+
+- Add unit testing to the different scheduler jobs to check that the message emitted
+  contains the right invoice status
+- Add unit testing to the processors
+- Review the way that the connection to the rabbitmq is established to check if there
+could be a more efficient way to reuse the same connection when sending multiple messages
+in a batch.

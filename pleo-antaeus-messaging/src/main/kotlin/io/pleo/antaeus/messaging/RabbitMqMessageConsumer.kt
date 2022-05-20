@@ -7,7 +7,7 @@ import io.pleo.antaeus.logging.PleoLogger
 import java.nio.charset.StandardCharsets
 
 class RabbitMqMessageConsumer(private val logger : PleoLogger) : MessageConsumer {
-    override fun subscribe(connectionInfo : ConnectionInfo,
+    override fun subscribe(connectionInfo : QueueConnectionInfo,
                            queue : String,
                            consumerTag : String,
                            deliverAction: (consumerTag : String?, message : String) -> Unit,

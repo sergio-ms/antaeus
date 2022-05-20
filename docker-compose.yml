@@ -10,17 +10,17 @@ services:
       - pleo_antaeus_net
 
 
-#  pleo-antaeus-app:
-#    image: 'pleo-antaeus'
-#    container_name: 'pleo-antaeus-app'
-#    build:
-#      context: ./
-#    depends_on:
-#      - pleo-antaeus-queue
-#    ports:
-#      - 7000:7000
-#    networks:
-#      - pleo_antaeus_net
+  pleo-antaeus-app:
+    image: 'pleo-antaeus'
+    container_name: 'pleo-antaeus-app'
+    build:
+      context: ./
+    depends_on:
+      - pleo-antaeus-queue
+    ports:
+      - 7000:7000
+    networks:
+      - pleo_antaeus_net
 
 
 networks:

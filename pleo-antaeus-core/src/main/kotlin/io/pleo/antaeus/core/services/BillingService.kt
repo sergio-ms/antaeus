@@ -47,9 +47,9 @@ class BillingService(private val paymentProvider: PaymentProvider,
         }
     }
 
-    override suspend fun getCustomersToBillMonthly(): List<Customer> {
+    override suspend fun getCustomersToBillOrdinarily(): List<Customer> {
         try {
-            return customerProvider.fetchCustomersWithPendingInvoices()
+            return customerProvider.fetchCustomersWithInvoicesAtStatus(getStatusForOrdinaryPayment())
         }
         catch (e : Exception)
         {
@@ -57,6 +57,32 @@ class BillingService(private val paymentProvider: PaymentProvider,
             throw e;
         }
     }
+
+    override fun getDefaulterCustomers(): List<Customer> {
+        try {
+            return customerProvider.fetchCustomersWithInvoicesAtStatus(getStatusForDefaulters())
+        }
+        catch (e : Exception)
+        {
+            logger.logError("${this.javaClass.name}: Unable to get customers to re-bill daily. ${e.message}")
+            throw e;
+        }
+    }
+
+    override fun getCustomersToReBillUrgently(): List<Customer> {
+        try {
+            return customerProvider.fetchCustomersWithInvoicesAtStatus(getStatusForUrgentRebilling())
+        }
+        catch (e : Exception)
+        {
+            logger.logError("${this.javaClass.name}: Unable to get customers to re-bill immediately. ${e.message}")
+            throw e;
+        }
+    }
+
+    override fun getStatusForOrdinaryPayment() : InvoiceStatus = InvoiceStatus.PENDING
+    override fun getStatusForUrgentRebilling() : InvoiceStatus = InvoiceStatus.PENDING_NETWORKUNAVAILABLE
+    override fun getStatusForDefaulters() : InvoiceStatus = InvoiceStatus.PENDING_INSUFICIENTCASH
 
     private suspend fun tryToChargeInvoice(invoice: Invoice): InvoiceStatus {
         var retries = 0

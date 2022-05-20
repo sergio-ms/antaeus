@@ -12,15 +12,15 @@ class MessagingConfiguration {
     val invoicesExchange: String = "InvoicesExchange"
     val customersExchange : String = "CustomersExchange"
 
-    val connInfo = ConnectionInfo()
+    val connInfo = QueueConnectionInfo()
     val routingKey = "default"
     val exchangeType = "direct"
 }
 
-class ConnectionInfo
+class QueueConnectionInfo
 {
-    var host = "localhost"
-    //var host = "pleo-antaeus-queue"
+    private val runLocal = false // Enable for local debugging
+    var host = if(runLocal) "localhost" else "pleo-antaeus-queue"
     var username = "guest"
     val password = "guest"
     val port = 5672
