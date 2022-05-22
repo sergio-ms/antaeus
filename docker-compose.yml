@@ -1,0 +1,28 @@
+version: "3.7"
+services:
+  pleo-antaeus-queue:
+    image: rabbitmq:3-management
+    container_name: 'pleo-antaeus-queue'
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - pleo_antaeus_net
+
+
+  pleo-antaeus-app:
+    image: 'pleo-antaeus'
+    container_name: 'pleo-antaeus-app'
+    build:
+      context: ./
+    depends_on:
+      - pleo-antaeus-queue
+    ports:
+      - 7000:7000
+    networks:
+      - pleo_antaeus_net
+
+
+networks:
+  pleo_antaeus_net:
+    driver: bridge

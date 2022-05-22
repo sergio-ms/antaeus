@@ -7,14 +7,24 @@
 
 package io.pleo.antaeus.app
 
-import getPaymentProvider
-import io.pleo.antaeus.core.services.BillingService
-import io.pleo.antaeus.core.services.CustomerService
+import io.pleo.antaeus.core.providers.BillingProvider
+import io.pleo.antaeus.core.providers.InvoiceProvider
 import io.pleo.antaeus.core.services.InvoiceService
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
 import io.pleo.antaeus.data.InvoiceTable
+import io.pleo.antaeus.factories.ServiceFactory
+import io.pleo.antaeus.logging.LoggerFactory
+import io.pleo.antaeus.messaging.MessagingConfiguration
+import io.pleo.antaeus.messaging.MessagingFactory
+import io.pleo.antaeus.messaging.processors.CustomerToInvoiceProcessor
+import io.pleo.antaeus.messaging.processors.PendingInvoiceProcessor
 import io.pleo.antaeus.rest.AntaeusRest
+import io.pleo.antaeus.scheduling.CronScheduler
+import io.pleo.antaeus.scheduling.jobs.OrdinaryBillingJob
+import io.pleo.antaeus.scheduling.SchedulerConfiguration
+import io.pleo.antaeus.scheduling.jobs.DefaultersReBillingJob
+import io.pleo.antaeus.scheduling.jobs.UrgentReBillingJob
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.StdOutSqlLogger
@@ -25,17 +35,21 @@ import setupInitialData
 import java.io.File
 import java.sql.Connection
 
+
 fun main() {
+
     // The tables to create in the database.
     val tables = arrayOf(InvoiceTable, CustomerTable)
 
     val dbFile: File = File.createTempFile("antaeus-db", ".sqlite")
     // Connect to the database and create the needed tables. Drop any existing data.
     val db = Database
-        .connect(url = "jdbc:sqlite:${dbFile.absolutePath}",
+        .connect(
+            url = "jdbc:sqlite:${dbFile.absolutePath}",
             driver = "org.sqlite.JDBC",
             user = "root",
-            password = "")
+            password = ""
+        )
         .also {
             TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
             transaction(it) {
@@ -53,19 +67,71 @@ fun main() {
     // Insert example data in the database.
     setupInitialData(dal = dal)
 
-    // Get third parties
-    val paymentProvider = getPaymentProvider()
+    // Factory required by the different jobs
+    ServiceFactory.setDal(dal)
 
     // Create core services
-    val invoiceService = InvoiceService(dal = dal)
-    val customerService = CustomerService(dal = dal)
-
-    // This is _your_ billing service to be included where you see fit
-    val billingService = BillingService(paymentProvider = paymentProvider)
+    val invoiceService = ServiceFactory.getInvoiceProvider()
+    val customerService = ServiceFactory.getCustomerProvider()
+    val billingService = ServiceFactory.getBillingProvider()
 
     // Create REST web service
     AntaeusRest(
-        invoiceService = invoiceService,
+        invoiceService = invoiceService as InvoiceService,
         customerService = customerService
     ).run()
+
+    startSchedulers()
+    registerProcessors(invoiceService, billingService)
 }
+
+private fun registerProcessors(
+    invoiceService: InvoiceProvider,
+    billingService: BillingProvider
+) {
+    // Create CustomerToInvoiceProcessor processor
+    CustomerToInvoiceProcessor(
+        MessagingConfiguration(), MessagingFactory.getMessageConsumer(),
+        MessagingFactory.getMessagePublisher(), invoiceService, LoggerFactory.getLogger()
+    ).start()
+
+    // Create CustomerToInvoiceProcessor processor
+    PendingInvoiceProcessor(
+        MessagingConfiguration(), MessagingFactory.getMessageConsumer(), billingService, LoggerFactory.getLogger()
+    ).start()
+}
+
+private fun startSchedulers() {
+    val conf = SchedulerConfiguration()
+    // Start job for ordinary billing
+    var ordinaryBillingJobScheduler = CronScheduler(
+        conf.ordinaryBillingJobName,
+        conf.billingJobGroup,
+        conf.ordinaryBillingJobCronExpression,
+        OrdinaryBillingJob(),
+        LoggerFactory.getLogger()
+    )
+    ordinaryBillingJobScheduler.start()
+
+    // Start job for urgent re-billing
+    var urgentReBillingJobScheduler = CronScheduler(
+        conf.urgentBillingJobName,
+        conf.billingJobGroup,
+        conf.urgentBillingJobCronExpression,
+        UrgentReBillingJob(),
+        LoggerFactory.getLogger()
+    )
+    urgentReBillingJobScheduler.start()
+
+    // Start job for defaulters
+    var defaultersReBillingJobScheduler = CronScheduler(
+        conf.defaultersBillingJobName,
+        conf.billingJobGroup,
+        conf.defaultersBillingJobCronExpression,
+        DefaultersReBillingJob(),
+        LoggerFactory.getLogger()
+    )
+    defaultersReBillingJobScheduler.start()
+}
+
+
