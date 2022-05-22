@@ -146,9 +146,7 @@ The scheduling and processing components are independent modules. They depend on
 layer (pleo-antaeus-core) but not the other way around. The business layer focus only in writing the business
 specific logic and know nothing about the processors or the schedulers' behaviour. This is an intentional decoupling.
 The scheduling and the processing layer could be easily replaced without having to modify the business layer 
-at all. In fact, it could be very likely that the processing layer could use any other queue system such as Kafka etc.
-and that would require the replacement of the existing processing project but nothing else.
-
+at all. 
 
 ### Communication
 One of the advantages of having a monolithic solution is the simplicity when it comes to communicate the different 
